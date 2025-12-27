@@ -85,6 +85,29 @@ def save_youtube_headers(headers):
     save_tokens(tokens)
 
 
+def save_youtube_oauth(token_data):
+    """
+    Guarda los tokens OAuth de YouTube Music.
+    """
+    tokens = get_tokens()
+    
+    tokens["youtube_music"] = {
+        "oauth": token_data,
+        "saved_at": datetime.now().isoformat()
+    }
+    
+    save_tokens(tokens)
+
+
+def get_youtube_oauth():
+    """
+    Obtiene los tokens OAuth de YouTube Music guardados.
+    """
+    tokens = get_tokens()
+    youtube = tokens.get("youtube_music", {})
+    return youtube.get("oauth")
+
+
 def get_spotify_access_token():
     """
     Obtiene un access token válido de Spotify.
@@ -171,6 +194,7 @@ def has_valid_credentials():
     tokens = get_tokens()
     
     has_spotify = bool(tokens.get("spotify", {}).get("refresh_token"))
-    has_youtube = bool(tokens.get("youtube_music", {}).get("headers"))
+    youtube_data = tokens.get("youtube_music", {})
+    has_youtube = bool(youtube_data.get("headers") or youtube_data.get("oauth"))
     
     return has_spotify and has_youtube

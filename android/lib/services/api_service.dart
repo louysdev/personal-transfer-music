@@ -297,6 +297,41 @@ class ApiService {
     }
   }
 
+  /// Get Google Client ID
+  Future<String?> getGoogleClientId() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$baseUrl/auth/mobile/google'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['client_id'];
+      }
+      return null;
+    } catch (e) {
+      print('Error getting Google Client ID: $e');
+      return null;
+    }
+  }
+
+  /// Send Google Auth Code to backend
+  Future<bool> sendGoogleAuthCode(String code) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/auth/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'code': code}),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error sending Google auth code: $e');
+      return false;
+    }
+  }
+
   void dispose() {
     _client.close();
   }

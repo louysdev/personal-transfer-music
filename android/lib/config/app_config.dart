@@ -1,7 +1,7 @@
 /// App configuration constants
 class AppConfig {
   // API Base URL - Change this to your backend URL
-  static const String apiBaseUrl = 'http://10.0.2.2:8080'; // Android emulator localhost
+  static const String apiBaseUrl = 'https://personal-transfer-music.onrender.com'; // Android emulator localhost
   // static const String apiBaseUrl = 'http://localhost:8080'; // iOS simulator
   // static const String apiBaseUrl = 'https://your-backend.com'; // Production
   

@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../models/transfer_models.dart';
 import 'dart:async';
 
 /// Provider for managing transfer all playlists state
 class TransferAllProvider extends ChangeNotifier {
   final ApiService _apiService;
+  late final AuthService _authService;
   
   // State
   bool _isLoading = false;
@@ -18,6 +20,7 @@ class TransferAllProvider extends ChangeNotifier {
   Timer? _pollingTimer;
   String _authHeaders = '';
   String _spotifyToken = '';
+  bool _isGoogleConnected = false;
 
   // Getters
   bool get isLoading => _isLoading;
@@ -29,6 +32,7 @@ class TransferAllProvider extends ChangeNotifier {
   TransferProgress? get transferProgress => _transferProgress;
   String get authHeaders => _authHeaders;
   String get spotifyToken => _spotifyToken;
+  bool get isGoogleConnected => _isGoogleConnected;
   
   bool get hasPlaylists => _playlists.isNotEmpty;
   bool get hasSelection => _selectedPlaylistIds.isNotEmpty;
@@ -37,7 +41,44 @@ class TransferAllProvider extends ChangeNotifier {
   bool get allSelected => _selectedPlaylistIds.length == _playlists.length;
 
   TransferAllProvider({ApiService? apiService, String? baseUrl}) 
-      : _apiService = apiService ?? ApiService(baseUrl: baseUrl);
+      : _apiService = apiService ?? ApiService(baseUrl: baseUrl) {
+        _authService = AuthService(_apiService);
+        _initAuth();
+      }
+
+  Future<void> _initAuth() async {
+    await _authService.initialize();
+    _checkGoogleConnection();
+  }
+
+  void _checkGoogleConnection() {
+    _isGoogleConnected = _authService.currentUser != null;
+    notifyListeners();
+  }
+
+  /// Sign in with Google
+  Future<void> signInWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    final success = await _authService.signInWithGoogle();
+    
+    if (success) {
+      _errorMessage = null;
+    } else {
+      _errorMessage = 'Failed to sign in with Google';
+    }
+    
+    _checkGoogleConnection();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Sign out from Google
+  Future<void> signOutFromGoogle() async {
+    await _authService.signOut();
+    _checkGoogleConnection();
+  }
 
   /// Set auth headers
   void setAuthHeaders(String headers) {
@@ -124,8 +165,8 @@ class TransferAllProvider extends ChangeNotifier {
 
   /// Start transfer of selected playlists
   Future<bool> startTransfer() async {
-    if (_authHeaders.isEmpty) {
-      _errorMessage = 'YouTube Music auth headers are required';
+    if (_authHeaders.isEmpty && !_isGoogleConnected) {
+      _errorMessage = 'YouTube Music connection or auth headers are required';
       notifyListeners();
       return false;
     }

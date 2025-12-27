@@ -90,9 +90,45 @@ def get_video_ids(ytmusic,tracks):
     return video_ids, missed_tracks
 
 
+def setup_ytmusic(headers=None):
+    """
+    Configura y retorna una instancia de YTMusic.
+    Intenta usar OAuth primero, luego headers.
+    """
+    import os
+    # Intentar obtener credenciales OAuth
+    try:
+        from token_manager import get_youtube_oauth
+        import json
+        
+        oauth_tokens = get_youtube_oauth()
+        if oauth_tokens:
+            print("Using OAuth credentials for YouTube Music")
+            # Guardar en oauth.json porque YTMusic lo necesita
+            with open("oauth.json", "w") as f:
+                json.dump(oauth_tokens, f)
+            return YTMusic("oauth.json")
+    except Exception as e:
+        print(f"Error setting up OAuth: {e}")
+    
+    # Si falla OAuth, usar headers
+    if headers:
+        print("Using Header credentials for YouTube Music")
+        ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
+        return YTMusic("header_auth.json")
+        
+    # Intentar cargar archivos existentes por defecto
+    if os.path.exists("oauth.json"):
+        return YTMusic("oauth.json")
+    
+    if os.path.exists("header_auth.json"):
+        return YTMusic("header_auth.json")
+        
+    raise Exception("No valid credentials found for YouTube Music")
+
+
 def create_ytm_playlist(playlist_link, headers):
-    ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-    ytmusic = YTMusic("header_auth.json")
+    ytmusic = setup_ytmusic(headers)
     tracks = get_all_tracks(playlist_link, "IN")
     name = get_playlist_name(playlist_link)
     
@@ -171,8 +207,7 @@ def transfer_all_playlists(playlists_data, headers, transfer_id=None, progress_t
     Returns:
         Diccionario con resultados de la transferencia para cada playlist
     """
-    ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-    ytmusic = YTMusic("header_auth.json")
+    ytmusic = setup_ytmusic(headers)
     
     results = {
         "total_playlists": len(playlists_data),
@@ -360,8 +395,7 @@ def transfer_selected_tracks(playlists_data, headers, transfer_id=None, progress
     Returns:
         Diccionario con resultados de la transferencia para cada playlist
     """
-    ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-    ytmusic = YTMusic("header_auth.json")
+    ytmusic = setup_ytmusic(headers)
     
     results = {
         "total_playlists": len(playlists_data),
@@ -539,8 +573,7 @@ def delete_all_ytm_playlists(headers, delete_progress=None, delete_id=None):
     Returns:
         Diccionario con resultados de la eliminación
     """
-    ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-    ytmusic = YTMusic("header_auth.json")
+    ytmusic = setup_ytmusic(headers)
     
     results = {
         "total_playlists": 0,
@@ -645,8 +678,7 @@ def get_ytm_playlists(headers):
     Returns:
         Lista de playlists con id, name, count, thumbnails
     """
-    ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-    ytmusic = YTMusic("header_auth.json")
+    ytmusic = setup_ytmusic(headers)
     
     try:
         print("Fetching all playlists from YouTube Music...")
@@ -694,8 +726,7 @@ def delete_selected_ytm_playlists(headers, playlist_ids, delete_progress=None, d
     Returns:
         Diccionario con resultados de la eliminación
     """
-    ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-    ytmusic = YTMusic("header_auth.json")
+    ytmusic = setup_ytmusic(headers)
     
     results = {
         "total_playlists": len(playlist_ids),

@@ -10,9 +10,11 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
 from token_manager import (
     save_spotify_tokens, 
-    save_youtube_headers, 
+    save_youtube_headers,
+    save_youtube_oauth,
     get_spotify_access_token, 
     get_youtube_headers,
+    get_youtube_oauth,
     has_valid_credentials
 )
 
@@ -44,6 +46,45 @@ cancelled_deletions = set()
 # Scheduler para sincronización automática
 scheduler = BackgroundScheduler()
 auto_sync_enabled = False
+
+
+@app.route('/auth/google', methods=['POST'])
+def google_auth():
+    """
+    Intercambia el server auth code de Google por tokens.
+    """
+    data = request.get_json()
+    code = data.get('code')
+    
+    if not code:
+        return {"message": "Authorization code is required"}, 400
+        
+    try:
+        # Intercambiar código por tokens
+        token_url = "https://oauth2.googleapis.com/token"
+        
+        payload = {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+            'client_secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': ''  # Para flujo Android/iOS -> Backend no se suele requerir URI
+        }
+        
+        response = requests.post(token_url, data=payload)
+        
+        if response.status_code != 200:
+            return {"message": f"Failed to exchange code: {response.text}"}, 400
+            
+        token_data = response.json()
+        
+        # Guardar tokens
+        save_youtube_oauth(token_data)
+        
+        return {"message": "Google authentication successful", "authenticated": True}, 200
+        
+    except Exception as e:
+        return {"message": f"Error authenticating with Google: {str(e)}"}, 500
 
 
 @app.route('/create', methods=['POST'])
@@ -112,7 +153,7 @@ def get_playlist_tracks(playlist_id):
 def transfer_all():
     """
     Transfiere todas las playlists de Spotify a YouTube Music.
-    Requiere el token de Spotify y los headers de YouTube Music.
+    Requiere el token de Spotify y autenticación de YouTube Music (headers u OAuth).
     """
     data = request.get_json() if request.data else {}
     spotify_token = data.get('spotify_token')
@@ -126,15 +167,13 @@ def transfer_all():
     if not spotify_token:
         return {"message": "Spotify access token is required"}, 400
     
-    # Si no se proporcionan headers, usar los guardados
-    if not auth_headers:
-        auth_headers = get_youtube_headers()
+    # Si se proporcionan headers, guardarlos
+    if auth_headers:
+        save_youtube_headers(auth_headers)
     
-    if not auth_headers:
-        return {"message": "YouTube Music auth headers are required"}, 400
-    
-    # Guardar headers de YouTube Music
-    save_youtube_headers(auth_headers)
+    # Verificar si tenemos alguna forma de autenticación para YouTube
+    if not auth_headers and not get_youtube_headers() and not get_youtube_oauth():
+         return {"message": "YouTube Music authentication is required"}, 400
     
     try:
         # Obtener todas las playlists del usuario
@@ -218,38 +257,21 @@ def cancel_transfer(transfer_id):
 def transfer_selected():
     """
     Transfiere playlists con canciones seleccionadas específicas a YouTube Music.
-    
-    Body esperado:
-    {
-        "auth_headers": "...",
-        "playlists": [
-            {
-                "id": "playlist_id",
-                "name": "Playlist Name",
-                "image": "image_url",
-                "tracks": [
-                    {"name": "Song", "artists": ["Artist"], "album": "Album"},
-                    ...
-                ]
-            }
-        ]
-    }
     """
     data = request.get_json() if request.data else {}
     auth_headers = data.get('auth_headers')
     playlists_data = data.get('playlists', [])
     
-    # Si no se proporcionan headers, usar los guardados
-    if not auth_headers:
-        auth_headers = get_youtube_headers()
-        if not auth_headers:
-            return {"message": "YouTube Music auth headers are required"}, 400
+    # Si se proporcionan headers, guardarlos
+    if auth_headers:
+        save_youtube_headers(auth_headers)
+        
+    # Verificar si tenemos alguna forma de autenticación para YouTube
+    if not auth_headers and not get_youtube_headers() and not get_youtube_oauth():
+         return {"message": "YouTube Music authentication is required"}, 400
     
     if not playlists_data or len(playlists_data) == 0:
         return {"message": "No playlists with tracks provided"}, 400
-    
-    # Guardar headers de YouTube Music
-    save_youtube_headers(auth_headers)
     
     try:
         # Generar ID único para esta transferencia
@@ -302,11 +324,13 @@ def delete_all_playlists():
     data = request.get_json() if request.data else {}
     auth_headers = data.get('auth_headers')
     
-    # Si no se proporcionan headers, usar los guardados
-    if not auth_headers:
-        auth_headers = get_youtube_headers()
-        if not auth_headers:
-            return {"message": "YouTube Music headers are required. Please authenticate first."}, 400
+    # Si se proporcionan headers, guardarlos
+    if auth_headers:
+        save_youtube_headers(auth_headers)
+        
+    # Verificar si tenemos alguna forma de autenticación para YouTube
+    if not auth_headers and not get_youtube_headers() and not get_youtube_oauth():
+         return {"message": "YouTube Music authentication is required"}, 400
     
     try:
         # Generar ID único para esta eliminación
@@ -376,11 +400,13 @@ def get_ytm_playlists_endpoint():
     data = request.get_json() if request.data else {}
     auth_headers = data.get('auth_headers')
     
-    # Si no se proporcionan headers, usar los guardados
-    if not auth_headers:
-        auth_headers = get_youtube_headers()
-        if not auth_headers:
-            return {"message": "YouTube Music headers are required. Please authenticate first."}, 400
+    # Si se proporcionan headers, guardarlos
+    if auth_headers:
+        save_youtube_headers(auth_headers)
+        
+    # Verificar si tenemos alguna forma de autenticación para YouTube
+    if not auth_headers and not get_youtube_headers() and not get_youtube_oauth():
+         return {"message": "YouTube Music authentication is required"}, 400
     
     try:
         playlists = get_ytm_playlists(auth_headers)
@@ -404,11 +430,13 @@ def delete_selected_playlists():
     auth_headers = data.get('auth_headers')
     playlist_ids = data.get('playlist_ids', [])
     
-    # Si no se proporcionan headers, usar los guardados
-    if not auth_headers:
-        auth_headers = get_youtube_headers()
-        if not auth_headers:
-            return {"message": "YouTube Music headers are required. Please authenticate first."}, 400
+    # Si se proporcionan headers, guardarlos
+    if auth_headers:
+        save_youtube_headers(auth_headers)
+        
+    # Verificar si tenemos alguna forma de autenticación para YouTube
+    if not auth_headers and not get_youtube_headers() and not get_youtube_oauth():
+         return {"message": "YouTube Music authentication is required"}, 400
     
     if not playlist_ids or len(playlist_ids) == 0:
         return {"message": "No playlists selected for deletion"}, 400
@@ -449,6 +477,16 @@ def delete_selected_playlists():
         }, 202
     except Exception as e:
         return {"message": str(e)}, 500
+
+
+@app.route('/auth/mobile/google', methods=['GET'])
+def google_auth_mobile():
+    """
+    Devuelve las credenciales necesarias para Google Sign-In en el cliente móvil.
+    """
+    return {
+        "client_id": os.getenv('GOOGLE_CLIENT_ID')
+    }, 200
 
 
 def _render_mobile_error(error_message):
