@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/transfer_provider.dart';
 import '../config/app_config.dart';
@@ -193,35 +194,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const Icon(Icons.security_outlined),
                           const SizedBox(width: 8),
                           Text(
-                            'Authentication',
+                            'YouTube Music Authentication',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Save your auth headers here to use across the entire app',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey,
+                            ),
+                      ),
                       const SizedBox(height: 16),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          provider.authHeaders.isNotEmpty
-                              ? Icons.check_circle
-                              : Icons.warning,
+                      
+                      // Status indicator
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
                           color: provider.authHeaders.isNotEmpty
-                              ? AppTheme.successColor
-                              : AppTheme.warningColor,
+                              ? AppTheme.successColor.withValues(alpha: 0.1)
+                              : AppTheme.warningColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: provider.authHeaders.isNotEmpty
+                                ? AppTheme.successColor
+                                : AppTheme.warningColor,
+                          ),
                         ),
-                        title: const Text('YouTube Music Headers'),
-                        subtitle: Text(
-                          provider.authHeaders.isNotEmpty
-                              ? 'Headers saved (${provider.authHeaders.length} characters)'
-                              : 'No headers saved',
+                        child: Row(
+                          children: [
+                            Icon(
+                              provider.authHeaders.isNotEmpty
+                                  ? Icons.check_circle
+                                  : Icons.warning,
+                              color: provider.authHeaders.isNotEmpty
+                                  ? AppTheme.successColor
+                                  : AppTheme.warningColor,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                provider.authHeaders.isNotEmpty
+                                    ? 'Headers saved (${provider.authHeaders.length} characters)'
+                                    : 'No headers saved - paste below',
+                                style: TextStyle(
+                                  color: provider.authHeaders.isNotEmpty
+                                      ? AppTheme.successColor
+                                      : AppTheme.warningColor,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        trailing: provider.authHeaders.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: _clearAuthHeaders,
-                                tooltip: 'Clear headers',
-                              )
-                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Auth headers input
+                      TextFormField(
+                        initialValue: provider.authHeaders,
+                        decoration: InputDecoration(
+                          hintText: 'Paste your YouTube Music auth headers here...',
+                          prefixIcon: const Icon(Icons.vpn_key),
+                          helperText: 'Get from Developer Tools → Network → Copy request headers',
+                          helperStyle: const TextStyle(fontSize: 11),
+                        ),
+                        maxLines: 5,
+                        onChanged: (value) {
+                          provider.saveAuthHeaders(value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: provider.authHeaders.isNotEmpty
+                                  ? _clearAuthHeaders
+                                  : null,
+                              icon: const Icon(Icons.delete_outline),
+                              label: const Text('Clear Headers'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                if (data?.text != null) {
+                                  await provider.saveAuthHeaders(data!.text!);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Headers pasted and saved!'),
+                                        backgroundColor: AppTheme.successColor,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.content_paste),
+                              label: const Text('Paste & Save'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

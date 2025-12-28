@@ -34,13 +34,24 @@ class _DeleteAllScreenState extends State<DeleteAllScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Listen for URL changes from TransferProvider and update DeleteAllProvider
-    final currentUrl = context.watch<TransferProvider>().baseUrl;
+    // Listen for URL changes and Auth Headers from TransferProvider
+    final transferProvider = context.watch<TransferProvider>();
+    final currentUrl = transferProvider.baseUrl;
+    final savedHeaders = transferProvider.authHeaders;
+    
     final deleteAllProvider = context.read<DeleteAllProvider>();
     
-    // Schedule the update for after build
+    // Schedule state updates for after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       deleteAllProvider.updateBaseUrl(currentUrl);
+      
+      // Auto-populate auth headers if saved in settings and not already set in this provider
+      if (savedHeaders.isNotEmpty && deleteAllProvider.authHeaders.isEmpty) {
+        deleteAllProvider.setAuthHeaders(savedHeaders);
+        if (_authHeadersController.text.isEmpty) {
+          _authHeadersController.text = savedHeaders;
+        }
+      }
     });
     
     return Scaffold(
