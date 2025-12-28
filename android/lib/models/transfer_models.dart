@@ -70,7 +70,7 @@ class SpotifyPlaylist {
       name: json['name'] ?? '',
       description: json['description'],
       image: json['image'],
-      trackCount: json['tracks'] ?? 0,
+      trackCount: json['total_tracks'] ?? 0,
     );
   }
 }

@@ -160,13 +160,13 @@ class ApiService {
     List<String>? playlistIds,
   }) async {
     try {
-      final body = {
+      final Map<String, dynamic> body = {
         'spotify_token': spotifyToken,
         'auth_headers': authHeaders,
       };
       
       if (playlistIds != null && playlistIds.isNotEmpty) {
-        body['playlist_ids'] = playlistIds as dynamic;
+        body['playlist_ids'] = playlistIds;
       }
 
       final response = await _client.post(
