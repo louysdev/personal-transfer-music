@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'single_playlist_screen.dart';
 import 'transfer_all_screen.dart';
+import 'delete_all_screen.dart';
 import 'settings_screen.dart';
 import '../providers/transfer_all_provider.dart';
+import '../providers/delete_all_provider.dart';
 import '../providers/transfer_provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,6 +31,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: const TransferAllScreen(),
           ),
+          ChangeNotifierProvider(
+            create: (_) => DeleteAllProvider(
+              baseUrl: context.read<TransferProvider>().baseUrl,
+            ),
+            child: const DeleteAllScreen(),
+          ),
           const SettingsScreen(),
         ],
       ),
@@ -51,6 +59,11 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'All',
           ),
           NavigationDestination(
+            icon: Icon(Icons.delete_outline),
+            selectedIcon: Icon(Icons.delete),
+            label: 'Delete',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Settings',
@@ -60,3 +73,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+

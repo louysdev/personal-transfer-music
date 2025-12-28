@@ -385,6 +385,107 @@ class ApiService {
     }
   }
 
+  /// Delete selected playlists from YouTube Music
+  Future<ApiResponse<Map<String, dynamic>>> deleteSelectedPlaylists({
+    required String authHeaders,
+    required List<String> playlistIds,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl${AppConfig.deleteSelectedPlaylistsEndpoint}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'auth_headers': authHeaders,
+          'playlist_ids': playlistIds,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 202) {
+        return ApiResponse(
+          success: true,
+          data: data,
+          message: data['message'],
+          statusCode: response.statusCode,
+        );
+      } else {
+        return ApiResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to start deletion',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        message: 'Error: $e',
+        statusCode: 0,
+      );
+    }
+  }
+
+  /// Get delete status
+  Future<ApiResponse<Map<String, dynamic>>> getDeleteStatus({
+    required String deleteId,
+  }) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$baseUrl${AppConfig.deleteStatusEndpoint}/$deleteId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return ApiResponse(
+          success: true,
+          data: data,
+          statusCode: response.statusCode,
+        );
+      } else {
+        return ApiResponse(
+          success: false,
+          message: data['message'] ?? 'Delete operation not found',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        message: 'Error: $e',
+        statusCode: 0,
+      );
+    }
+  }
+
+  /// Cancel delete operation
+  Future<ApiResponse<Map<String, dynamic>>> cancelDelete({
+    required String deleteId,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl${AppConfig.deleteCancelEndpoint}/$deleteId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final data = jsonDecode(response.body);
+
+      return ApiResponse(
+        success: response.statusCode == 200,
+        data: data,
+        message: data['message'],
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        message: 'Error: $e',
+        statusCode: 0,
+      );
+    }
+  }
+
   void dispose() {
     _client.close();
   }

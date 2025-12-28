@@ -155,3 +155,102 @@ class PlaylistTransferStatus {
     );
   }
 }
+
+/// Model for YouTube Music playlist
+class YTMPlaylist {
+  final String id;
+  final String name;
+  final int count;
+  final String? image;
+
+  YTMPlaylist({
+    required this.id,
+    required this.name,
+    required this.count,
+    this.image,
+  });
+
+  factory YTMPlaylist.fromJson(Map<String, dynamic> json) {
+    // Parse count - can be int or String
+    int countValue = 0;
+    if (json['count'] != null) {
+      if (json['count'] is int) {
+        countValue = json['count'];
+      } else if (json['count'] is String) {
+        countValue = int.tryParse(json['count']) ?? 0;
+      }
+    }
+    
+    return YTMPlaylist(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      count: countValue,
+      image: json['image'],
+    );
+  }
+}
+
+/// Model for playlist delete status
+class PlaylistDeleteStatus {
+  final String name;
+  final String status;
+  final String? playlistId;
+  final String? reason;
+  final String? image;
+
+  PlaylistDeleteStatus({
+    required this.name,
+    required this.status,
+    this.playlistId,
+    this.reason,
+    this.image,
+  });
+
+  factory PlaylistDeleteStatus.fromJson(Map<String, dynamic> json) {
+    return PlaylistDeleteStatus(
+      name: json['name'] ?? '',
+      status: json['status'] ?? 'pending',
+      playlistId: json['playlistId'],
+      reason: json['reason'],
+      image: json['image'],
+    );
+  }
+}
+
+/// Model for delete progress
+class DeleteProgress {
+  final String status;
+  final int totalPlaylists;
+  final int deleted;
+  final int failed;
+  final List<PlaylistDeleteStatus> playlists;
+  final String? error;
+
+  DeleteProgress({
+    required this.status,
+    required this.totalPlaylists,
+    required this.deleted,
+    required this.failed,
+    required this.playlists,
+    this.error,
+  });
+
+  factory DeleteProgress.fromJson(Map<String, dynamic> json) {
+    return DeleteProgress(
+      status: json['status'] ?? 'unknown',
+      totalPlaylists: json['total_playlists'] ?? 0,
+      deleted: json['deleted'] ?? 0,
+      failed: json['failed'] ?? 0,
+      playlists: (json['playlists'] as List<dynamic>?)
+              ?.map((e) => PlaylistDeleteStatus.fromJson(e))
+              .toList() ??
+          [],
+      error: json['error'],
+    );
+  }
+
+  bool get isCompleted => status == 'completed';
+  bool get isInProgress => status == 'in_progress';
+  bool get hasError => status == 'error';
+  bool get isCancelled => status == 'cancelled';
+}

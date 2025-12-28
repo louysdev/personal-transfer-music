@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../models/transfer_models.dart';
 import '../config/app_config.dart';
 
@@ -16,7 +17,8 @@ enum TransferState {
 /// Provider for managing transfer state and operations
 class TransferProvider extends ChangeNotifier {
   // ignore: unused_field - kept for future use
-  final ApiService _apiService;
+  ApiService _apiService;
+  AuthService? _authService;
   
   // State
   TransferState _state = TransferState.idle;
@@ -27,6 +29,7 @@ class TransferProvider extends ChangeNotifier {
   String? _errorMessage;
   CreatePlaylistResponse? _lastResponse;
   bool _isLoading = false;
+  bool _isGoogleConnected = false;
 
   // Getters
   TransferState get state => _state;
@@ -37,9 +40,45 @@ class TransferProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   CreatePlaylistResponse? get lastResponse => _lastResponse;
   bool get isLoading => _isLoading;
+  bool get isGoogleConnected => _isGoogleConnected;
 
   TransferProvider({ApiService? apiService}) 
-      : _apiService = apiService ?? ApiService();
+      : _apiService = apiService ?? ApiService() {
+    _initAuthService();
+  }
+  
+  Future<void> _initAuthService() async {
+    _authService = AuthService(_apiService);
+    await _authService!.initialize();
+    _isGoogleConnected = _authService!.isSignedIn;
+    notifyListeners();
+  }
+
+  /// Sign in with Google for YouTube Music access
+  Future<bool> signInWithGoogle() async {
+    if (_authService == null) return false;
+    
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      final success = await _authService!.signInWithGoogle();
+      _isGoogleConnected = success;
+      return success;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+  
+  /// Sign out from Google
+  Future<void> signOutFromGoogle() async {
+    if (_authService == null) return;
+    
+    await _authService!.signOut();
+    _isGoogleConnected = false;
+    notifyListeners();
+  }
 
   /// Load saved settings from SharedPreferences
   Future<void> loadSettings() async {

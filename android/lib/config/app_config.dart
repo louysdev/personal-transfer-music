@@ -18,6 +18,8 @@ class AppConfig {
   static const String ytmPlaylistsEndpoint = '/ytm-playlists';
   static const String deleteAllPlaylistsEndpoint = '/delete-all-playlists';
   static const String deleteStatusEndpoint = '/delete-status';
+  static const String deleteSelectedPlaylistsEndpoint = '/delete-selected-playlists';
+  static const String deleteCancelEndpoint = '/delete-cancel';
   
   // Spotify Auth Endpoints
   static const String spotifyAuthEndpoint = '/auth/mobile/spotify';

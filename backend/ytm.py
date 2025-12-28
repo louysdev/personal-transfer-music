@@ -93,9 +93,16 @@ def get_video_ids(ytmusic,tracks):
 def setup_ytmusic(headers=None):
     """
     Configura y retorna una instancia de YTMusic.
-    Intenta usar OAuth primero, luego headers.
+    Prioridad: 1) Headers si se proporcionan, 2) OAuth si tiene refresh_token, 3) Archivos existentes
     """
     import os
+    
+    # Si se proporcionan headers, usarlos primero (más confiable)
+    if headers:
+        print("Using Header credentials for YouTube Music")
+        ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
+        return YTMusic("header_auth.json")
+    
     # Intentar obtener credenciales OAuth
     try:
         from token_manager import get_youtube_oauth
@@ -103,28 +110,46 @@ def setup_ytmusic(headers=None):
         
         oauth_tokens = get_youtube_oauth()
         if oauth_tokens:
-            print("Using OAuth credentials for YouTube Music")
-            # Guardar en oauth.json porque YTMusic lo necesita
-            with open("oauth.json", "w") as f:
-                json.dump(oauth_tokens, f)
-            return YTMusic("oauth.json")
+            # Validar que el token OAuth tenga el formato correcto para ytmusicapi
+            # ytmusicapi requiere: access_token Y refresh_token (para poder renovar)
+            # El token de Google Sign-In NO incluye refresh_token
+            has_access_token = "access_token" in oauth_tokens
+            has_refresh_token = "refresh_token" in oauth_tokens
+            
+            print(f"[DEBUG] OAuth tokens found: access_token={has_access_token}, refresh_token={has_refresh_token}")
+            
+            if has_access_token and has_refresh_token:
+                print("Using OAuth credentials for YouTube Music (valid format)")
+                # Guardar en oauth.json porque YTMusic lo necesita
+                with open("oauth.json", "w") as f:
+                    json.dump(oauth_tokens, f)
+                return YTMusic("oauth.json")
+            else:
+                print("OAuth token from Google Sign-In is not compatible with ytmusicapi (missing refresh_token)")
+                print("Please use header-based authentication or run 'ytmusicapi oauth' to set up proper OAuth")
     except Exception as e:
-        print(f"Error setting up OAuth: {e}")
-    
-    # Si falla OAuth, usar headers
-    if headers:
-        print("Using Header credentials for YouTube Music")
-        ytmusicapi.setup(filepath="header_auth.json", headers_raw=headers)
-        return YTMusic("header_auth.json")
+        print(f"Error checking OAuth: {e}")
         
     # Intentar cargar archivos existentes por defecto
-    if os.path.exists("oauth.json"):
-        return YTMusic("oauth.json")
-    
     if os.path.exists("header_auth.json"):
+        print("Using existing header_auth.json")
         return YTMusic("header_auth.json")
+    
+    # Solo usar oauth.json si fue creado por ytmusicapi (tiene refresh_token)
+    if os.path.exists("oauth.json"):
+        try:
+            import json
+            with open("oauth.json", "r") as f:
+                existing_oauth = json.load(f)
+            if existing_oauth.get("refresh_token"):
+                print("Using existing oauth.json (valid format)")
+                return YTMusic("oauth.json")
+            else:
+                print("Existing oauth.json is not valid (no refresh_token)")
+        except Exception as e:
+            print(f"Error reading oauth.json: {e}")
         
-    raise Exception("No valid credentials found for YouTube Music")
+    raise Exception("No valid credentials found for YouTube Music. Please provide auth headers or run 'ytmusicapi oauth' to set up OAuth.")
 
 
 def create_ytm_playlist(playlist_link, headers):
@@ -274,6 +299,11 @@ def transfer_all_playlists(playlists_data, headers, transfer_id=None, progress_t
             update_progress(i, "searching_songs", total_tracks=len(tracks), image=image)
             new_video_ids, missed_tracks = get_video_ids(ytmusic, tracks)
             
+            # Check cancellation after search
+            if is_cancelled():
+                print(f"\n=== Transfer Cancelled by User ===")
+                break
+            
             if len(new_video_ids) == 0:
                 print(f"No songs found on YouTube Music for playlist '{name}', skipping...")
                 results["failed"] += 1
@@ -288,6 +318,11 @@ def transfer_all_playlists(playlists_data, headers, transfer_id=None, progress_t
                 results["processed"] += 1
                 update_progress(i, "failed", name=name, reason="No songs found on YouTube Music", missed_tracks=len(tracks), image=image)
                 continue
+            
+            # Check cancellation before checking existing
+            if is_cancelled():
+                print(f"\n=== Transfer Cancelled by User ===")
+                break
             
             # Verificar si la playlist ya existe
             print(f"Checking if playlist '{name}' already exists...")
@@ -346,6 +381,12 @@ def transfer_all_playlists(playlists_data, headers, transfer_id=None, progress_t
                 print(f"Creating new playlist '{name}'...")
                 update_progress(i, "creating")
                 new_playlist_id = ytmusic.create_playlist(name, "", "PRIVATE", new_video_ids)
+                
+                # Check cancellation after creating playlist
+                if is_cancelled():
+                    print(f"\n=== Transfer Cancelled by User ===")
+                    break
+                
                 playlist_result["status"] = "created"
                 playlist_result["playlist_id"] = new_playlist_id
                 results["successful"] += 1
@@ -684,12 +725,30 @@ def get_ytm_playlists(headers):
         print("Fetching all playlists from YouTube Music...")
         playlists = ytmusic.get_library_playlists(limit=None)
         
+        # Debug: print raw response type and content
+        print(f"[DEBUG] get_library_playlists returned type: {type(playlists)}")
+        print(f"[DEBUG] get_library_playlists returned: {playlists}")
+        
+        if playlists is None:
+            print("get_library_playlists returned None")
+            raise Exception("Failed to fetch playlists - API returned None. Authentication may have failed.")
+        
         if not playlists:
             print("No playlists found in YouTube Music")
             return []
         
         result = []
-        for playlist in playlists:
+        for i, playlist in enumerate(playlists):
+            print(f"[DEBUG] Processing playlist {i}: {playlist}")
+            
+            if playlist is None:
+                print(f"[DEBUG] Skipping None playlist at index {i}")
+                continue
+                
+            if not isinstance(playlist, dict):
+                print(f"[DEBUG] Skipping non-dict playlist at index {i}: {type(playlist)}")
+                continue
+            
             playlist_data = {
                 "id": playlist.get("playlistId"),
                 "name": playlist.get("title", "Unknown"),
@@ -709,6 +768,8 @@ def get_ytm_playlists(headers):
         
     except Exception as e:
         print(f"Error fetching YTM playlists: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise Exception(f"Failed to fetch playlists: {str(e)}")
 
 

@@ -26,6 +26,7 @@ class AuthService {
   }
 
   GoogleSignInAccount? get currentUser => _currentUser;
+  bool get isSignedIn => _currentUser != null;
 
   Future<void> initialize() async {
     try {

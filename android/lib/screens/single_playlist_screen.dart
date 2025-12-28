@@ -50,6 +50,13 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final provider = context.read<TransferProvider>();
+    
+    // Check if user has authenticated with YouTube Music
+    if (!provider.isGoogleConnected && _authHeadersController.text.isEmpty) {
+      _showErrorSnackbar('Please connect to YouTube Music or provide auth headers');
+      return;
+    }
+    
     provider.setPlaylistUrl(_playlistUrlController.text);
     provider.setAuthHeaders(_authHeadersController.text);
 
@@ -191,55 +198,139 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // YouTube Music Auth Headers
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'YouTube Music Auth Headers',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      TextButton.icon(
-                        icon: Icon(_showHeaders 
-                            ? Icons.visibility_off 
-                            : Icons.visibility),
-                        label: Text(_showHeaders ? 'Hide' : 'Show'),
-                        onPressed: () {
-                          setState(() {
-                            _showHeaders = !_showHeaders;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _authHeadersController,
-                    decoration: InputDecoration(
-                      hintText: 'Paste your auth headers here...',
-                      prefixIcon: const Icon(Icons.security),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.content_paste),
-                        onPressed: () => _pasteFromClipboard(_authHeadersController),
-                        tooltip: 'Paste from clipboard',
+                  // YouTube Music Auth
+                  Card(
+                    color: const Color(0xFFFF0000).withValues(alpha: 0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.secondaryColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.play_circle_filled, color: Colors.white, size: 24),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'YouTube Music',
+                                      style: Theme.of(context).textTheme.titleSmall,
+                                    ),
+                                    Text(
+                                      provider.isGoogleConnected 
+                                          ? 'Connected ✓' 
+                                          : (provider.authHeaders.isNotEmpty ? 'Headers Provided' : 'Not connected'),
+                                      style: TextStyle(
+                                        color: (provider.isGoogleConnected || provider.authHeaders.isNotEmpty)
+                                            ? AppTheme.successColor
+                                            : Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Connect with Google Button
+                          if (!provider.isGoogleConnected)
+                            SizedBox(
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: provider.isLoading 
+                                    ? null 
+                                    : () => provider.signInWithGoogle(),
+                                icon: const Icon(Icons.login),
+                                label: const Text('Connect YouTube Music'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.secondaryColor,
+                                ),
+                              ),
+                            )
+                          else
+                            SizedBox(
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: () => provider.signOutFromGoogle(),
+                                icon: const Icon(Icons.logout),
+                                label: const Text('Disconnect from YouTube'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppTheme.secondaryColor,
+                                  side: const BorderSide(color: AppTheme.secondaryColor),
+                                ),
+                              ),
+                            ),
+                          
+                          // Manual headers option (fallback)
+                          if (!provider.isGoogleConnected) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Or paste headers manually',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  icon: Icon(_showHeaders 
+                                      ? Icons.visibility_off 
+                                      : Icons.visibility,
+                                      size: 16,
+                                  ),
+                                  label: Text(_showHeaders ? 'Hide' : 'Show'),
+                                  style: TextButton.styleFrom(
+                                    textStyle: const TextStyle(fontSize: 12),
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showHeaders = !_showHeaders;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _authHeadersController,
+                              decoration: InputDecoration(
+                                hintText: 'Paste your auth headers here...',
+                                prefixIcon: const Icon(Icons.security),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.content_paste),
+                                  onPressed: () => _pasteFromClipboard(_authHeadersController),
+                                  tooltip: 'Paste from clipboard',
+                                ),
+                              ),
+                              maxLines: _showHeaders ? 6 : 1,
+                              obscureText: !_showHeaders,
+                              onChanged: provider.setAuthHeaders,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Get headers from YouTube Music website (see Help)',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    maxLines: _showHeaders ? 6 : 1,
-                    obscureText: !_showHeaders,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter YouTube Music auth headers';
-                      }
-                      return null;
-                    },
-                    onChanged: provider.setAuthHeaders,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Get headers from YouTube Music website (see Help)',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
                   ),
                   const SizedBox(height: 32),
 
