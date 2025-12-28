@@ -41,69 +41,23 @@ class _TransferAllScreenState extends State<TransferAllScreen> {
   }
 
   Future<void> _loginWithSpotify(TransferAllProvider provider) async {
-    // Get base URL from settings
-    final baseUrl = context.read<TransferProvider>().baseUrl;
-    final authUrl = '$baseUrl${AppConfig.spotifyAuthEndpoint}';
-    
-    // Show instructions dialog first
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.music_note, color: Color(0xFF1DB954)),
-              SizedBox(width: 8),
-              Text('Spotify Login'),
-            ],
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('A browser will open for Spotify login.'),
-              SizedBox(height: 16),
-              Text('After logging in:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('1. Copy the token shown on the page'),
-              Text('2. Return to this app'),
-              Text('3. Paste the token using the paste button'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  final uri = Uri.parse(authUrl);
-                  final launched = await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
-                  );
-                  if (!launched && mounted) {
-                    _showErrorSnackbar('Could not open browser. URL: $authUrl');
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    _showErrorSnackbar('Error opening browser: $e');
-                  }
-                }
-              },
-              icon: const Icon(Icons.open_in_browser),
-              label: const Text('Open Browser'),
-            ),
-          ],
-        ),
-      );
+    await provider.signInWithSpotify();
+    if (provider.errorMessage != null && mounted) {
+      _showErrorSnackbar(provider.errorMessage!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Listen for URL changes from TransferProvider and update TransferAllProvider
+    final currentUrl = context.watch<TransferProvider>().baseUrl;
+    final transferAllProvider = context.read<TransferAllProvider>();
+    
+    // Schedule the update for after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      transferAllProvider.updateBaseUrl(currentUrl);
+    });
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transfer All Playlists'),

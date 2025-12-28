@@ -49,6 +49,9 @@ dependencies:
 
   # Google Sign In
   google_sign_in: ^6.1.6
+  
+  # Deep linking for OAuth callbacks
+  app_links: ^6.3.3
 
 dev_dependencies:
   flutter_test:

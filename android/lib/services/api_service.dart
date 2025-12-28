@@ -332,6 +332,52 @@ class ApiService {
     }
   }
 
+  /// Get Spotify Client ID
+  Future<String?> getSpotifyClientId() async {
+    try {
+      print('[DEBUG] Calling getSpotifyClientId, baseUrl: $baseUrl');
+      final response = await _client.get(
+        Uri.parse('$baseUrl/auth/mobile/spotify-code'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      print('[DEBUG] getSpotifyClientId response: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('[DEBUG] client_id: ${data['client_id']}');
+        return data['client_id'];
+      }
+      print('[DEBUG] Non-200 response: ${response.body}');
+      return null;
+    } catch (e) {
+      print('[DEBUG] Error getting Spotify Client ID: $e');
+      return null;
+    }
+  }
+
+  /// Exchange Spotify Code for Token
+  Future<String?> exchangeSpotifyCode(String code, String redirectUri) async {
+    try {
+      final response = await _client.post(
+         Uri.parse('$baseUrl/auth/mobile/spotify-code'),
+         headers: {'Content-Type': 'application/json'},
+         body: jsonEncode({
+           'code': code,
+           'redirect_uri': redirectUri,
+         }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['token'];
+      }
+      return null; 
+    } catch(e) {
+      print('Error exchanging Spotify code: $e');
+      return null;
+    }
+  }
+
   void dispose() {
     _client.close();
   }

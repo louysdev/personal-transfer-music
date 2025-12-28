@@ -714,6 +714,65 @@ def spotify_auth_mobile():
     return redirect(auth_url)
 
 
+@app.route('/auth/mobile/spotify-code', methods=['GET', 'POST'])
+def spotify_auth_code_mobile():
+    """
+    GET: Devuelve el client_id de Spotify.
+    POST: Intercambia el authorization_code obtenido via deep linking por tokens.
+    """
+    if request.method == 'GET':
+        client_id = os.getenv('SPOTIPY_CLIENT_ID')
+        print(f"[DEBUG] SPOTIPY_CLIENT_ID = {client_id}")
+        if not client_id:
+            return {"message": "SPOTIPY_CLIENT_ID not configured in .env"}, 500
+        return {
+            "client_id": client_id
+        }, 200
+        
+    if request.method == 'POST':
+        data = request.get_json()
+        code = data.get('code')
+        redirect_uri = data.get('redirect_uri')
+        
+        if not code or not redirect_uri:
+            return {"message": "Code and redirect_uri are required"}, 400
+            
+        try:
+             # Intercambiar código por tokens
+            import requests
+            token_url = 'https://accounts.spotify.com/api/token'
+            
+            payload = {
+                'grant_type': 'authorization_code',
+                'code': code,
+                'redirect_uri': redirect_uri,
+                'client_id': os.getenv('SPOTIPY_CLIENT_ID'),
+                'client_secret': os.getenv('SPOTIPY_CLIENT_SECRET')
+            }
+            
+            response = requests.post(token_url, data=payload)
+            
+            if response.status_code != 200:
+                return {"message": f"Failed to exchange code: {response.text}"}, 400
+                
+            token_data = response.json()
+            access_token = token_data.get('access_token')
+            refresh_token = token_data.get('refresh_token')
+            expires_in = token_data.get('expires_in', 3600)
+            
+            # Guardar tokens
+            if refresh_token:
+                save_spotify_tokens(access_token, refresh_token, expires_in)
+                
+            return {
+                "message": "Spotify authentication successful",
+                "token": access_token,
+                "authenticated": True
+            }, 200
+            
+        except Exception as e:
+            return {"message": f"Error authenticating with Spotify: {str(e)}"}, 500
+
 @app.route('/auth/mobile/token', methods=['GET'])
 def get_mobile_token():
     """

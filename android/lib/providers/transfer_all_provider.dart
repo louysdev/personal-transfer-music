@@ -6,9 +6,6 @@ import 'dart:async';
 
 /// Provider for managing transfer all playlists state
 class TransferAllProvider extends ChangeNotifier {
-  final ApiService _apiService;
-  late final AuthService _authService;
-  
   // State
   bool _isLoading = false;
   bool _isTransferring = false;
@@ -40,8 +37,13 @@ class TransferAllProvider extends ChangeNotifier {
   int get totalCount => _playlists.length;
   bool get allSelected => _selectedPlaylistIds.length == _playlists.length;
 
+  ApiService _apiService;
+  late AuthService _authService;
+  String _currentBaseUrl;
+
   TransferAllProvider({ApiService? apiService, String? baseUrl}) 
-      : _apiService = apiService ?? ApiService(baseUrl: baseUrl) {
+      : _apiService = apiService ?? ApiService(baseUrl: baseUrl),
+        _currentBaseUrl = baseUrl ?? '' {
         _authService = AuthService(_apiService);
         _initAuth();
       }
@@ -49,6 +51,18 @@ class TransferAllProvider extends ChangeNotifier {
   Future<void> _initAuth() async {
     await _authService.initialize();
     _checkGoogleConnection();
+  }
+
+  /// Update API base URL and reinitialize services
+  void updateBaseUrl(String newUrl) {
+    if (_currentBaseUrl != newUrl) {
+      print('[DEBUG] Updating base URL to: $newUrl');
+      _currentBaseUrl = newUrl;
+      _authService.dispose();
+      _apiService = ApiService(baseUrl: newUrl);
+      _authService = AuthService(_apiService);
+      _initAuth();
+    }
   }
 
   void _checkGoogleConnection() {
@@ -282,6 +296,24 @@ class TransferAllProvider extends ChangeNotifier {
   /// Clear error
   void clearError() {
     _errorMessage = null;
+    notifyListeners();
+  }
+
+  /// Sign in with Spotify (Native)
+  Future<void> signInWithSpotify() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    final token = await _authService.signInWithSpotify();
+    
+    if (token != null) {
+      _spotifyToken = token;
+      await loadPlaylists(); // Auto load playlists after login
+    } else {
+      _errorMessage = 'Failed to sign in with Spotify';
+    }
+    
+    _isLoading = false;
     notifyListeners();
   }
 
