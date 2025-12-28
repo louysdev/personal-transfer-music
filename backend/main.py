@@ -6,6 +6,7 @@ import os
 import secrets
 import urllib.parse
 import threading
+import requests
 from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
 from token_manager import (
@@ -53,25 +54,39 @@ def google_auth():
     """
     Intercambia el server auth code de Google por tokens.
     """
+    print("[DEBUG /auth/google] Received POST request")
     data = request.get_json()
     code = data.get('code')
     
+    print(f"[DEBUG /auth/google] Got code: {code[:20] if code else 'None'}...")
+    
     if not code:
+        print("[DEBUG /auth/google] No code provided")
         return {"message": "Authorization code is required"}, 400
         
     try:
         # Intercambiar código por tokens
         token_url = "https://oauth2.googleapis.com/token"
         
+        client_id = os.getenv('GOOGLE_CLIENT_ID')
+        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+        
+        print(f"[DEBUG /auth/google] Client ID: {client_id[:20] if client_id else 'None'}...")
+        print(f"[DEBUG /auth/google] Client Secret: {'SET' if client_secret else 'NOT SET'}")
+        
         payload = {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
-            'client_secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+            'client_id': client_id,
+            'client_secret': client_secret,
             'code': code,
             'grant_type': 'authorization_code',
             'redirect_uri': ''  # Para flujo Android/iOS -> Backend no se suele requerir URI
         }
         
+        print("[DEBUG /auth/google] Exchanging code for tokens...")
         response = requests.post(token_url, data=payload)
+        
+        print(f"[DEBUG /auth/google] Google response status: {response.status_code}")
+        print(f"[DEBUG /auth/google] Google response: {response.text[:200]}")
         
         if response.status_code != 200:
             return {"message": f"Failed to exchange code: {response.text}"}, 400
@@ -79,11 +94,16 @@ def google_auth():
         token_data = response.json()
         
         # Guardar tokens
+        print("[DEBUG /auth/google] Saving tokens...")
         save_youtube_oauth(token_data)
         
+        print("[DEBUG /auth/google] Authentication successful!")
         return {"message": "Google authentication successful", "authenticated": True}, 200
         
     except Exception as e:
+        print(f"[DEBUG /auth/google] Exception occurred: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"message": f"Error authenticating with Google: {str(e)}"}, 500
 
 
@@ -484,8 +504,10 @@ def google_auth_mobile():
     """
     Devuelve las credenciales necesarias para Google Sign-In en el cliente móvil.
     """
+    client_id = os.getenv('GOOGLE_CLIENT_ID')
+    print(f"[DEBUG /auth/mobile/google] GOOGLE_CLIENT_ID = {client_id}")
     return {
-        "client_id": os.getenv('GOOGLE_CLIENT_ID')
+        "client_id": client_id
     }, 200
 
 

@@ -300,18 +300,25 @@ class ApiService {
   /// Get Google Client ID
   Future<String?> getGoogleClientId() async {
     try {
+      print('[DEBUG getGoogleClientId] Calling, baseUrl: $baseUrl');
       final response = await _client.get(
         Uri.parse('$baseUrl/auth/mobile/google'),
         headers: {'Content-Type': 'application/json'},
       );
 
+      print('[DEBUG getGoogleClientId] Response status: ${response.statusCode}');
+      print('[DEBUG getGoogleClientId] Response body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('[DEBUG getGoogleClientId] Parsed data: $data');
+        print('[DEBUG getGoogleClientId] Got client_id: ${data['client_id']}');
         return data['client_id'];
       }
+      print('[DEBUG getGoogleClientId] Non-200 response: ${response.body}');
       return null;
     } catch (e) {
-      print('Error getting Google Client ID: $e');
+      print('[DEBUG getGoogleClientId] Error: $e');
       return null;
     }
   }

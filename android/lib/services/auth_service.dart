@@ -29,6 +29,8 @@ class AuthService {
 
   Future<void> initialize() async {
     try {
+      print('[DEBUG AuthService] Starting initialization...');
+      
       // Setup deep link listener
       _linkSubscription = _appLinks.uriLinkStream.listen((Uri uri) {
         _handleDeepLink(uri);
@@ -41,9 +43,13 @@ class AuthService {
       }
       
       // Fetch the server client ID from the backend
+      print('[DEBUG AuthService] Fetching Google Client ID from backend...');
       final clientId = await _apiService.getGoogleClientId();
+      print('[DEBUG AuthService] Got Client ID: ${clientId != null ? "YES" : "NO"}');
+      
       if (clientId != null) {
         _serverClientId = clientId;
+        print('[DEBUG AuthService] Initializing GoogleSignIn with serverClientId...');
         _googleSignIn = GoogleSignIn(
           serverClientId: _serverClientId,
           scopes: [
@@ -61,9 +67,12 @@ class AuthService {
         
         // Try to sign in silently
         await _googleSignIn!.signInSilently();
+        print('[DEBUG AuthService] Initialization complete!');
+      } else {
+        print('[DEBUG AuthService] FAILED - No Client ID received from backend');
       }
     } catch (e) {
-      print('Error initializing AuthService: $e');
+      print('[DEBUG AuthService] Error initializing: $e');
     }
   }
   
@@ -84,27 +93,33 @@ class AuthService {
 
   Future<bool> signInWithGoogle() async {
     if (_googleSignIn == null) {
-      print('GoogleSignIn not initialized');
+      print('[DEBUG] GoogleSignIn not initialized');
       return false;
     }
 
     try {
+      print('[DEBUG] Starting Google Sign-In...');
       final GoogleSignInAccount? account = await _googleSignIn!.signIn();
+      
+      print('[DEBUG] Sign-In result: ${account != null ? account.email : 'null'}');
       
       if (account != null) {
         _currentUser = account;
         
         if (account.serverAuthCode != null) {
+          print('[DEBUG] Got serverAuthCode, sending to backend...');
           final success = await _apiService.sendGoogleAuthCode(account.serverAuthCode!);
+          print('[DEBUG] Backend response: $success');
           return success;
         } else {
-          print('No serverAuthCode received.');
+          print('[DEBUG] No serverAuthCode received.');
           return false;
         }
       }
+      print('[DEBUG] Account is null after sign-in');
       return false;
     } catch (e) {
-      print('Error signing in with Google: $e');
+      print('[DEBUG] Error signing in with Google: $e');
       return false;
     }
   }
