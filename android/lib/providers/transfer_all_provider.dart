@@ -56,13 +56,11 @@ class TransferAllProvider extends ChangeNotifier {
   /// Update API base URL and reinitialize services
   Future<void> updateBaseUrl(String newUrl) async {
     if (_currentBaseUrl != newUrl) {
-      print('[DEBUG] Updating base URL to: $newUrl');
       _currentBaseUrl = newUrl;
       _authService.dispose();
       _apiService = ApiService(baseUrl: newUrl);
       _authService = AuthService(_apiService);
       await _initAuth(); // Wait for initialization to complete
-      print('[DEBUG] Base URL update complete');
     }
   }
 

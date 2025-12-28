@@ -116,8 +116,6 @@ def setup_ytmusic(headers=None):
             has_access_token = "access_token" in oauth_tokens
             has_refresh_token = "refresh_token" in oauth_tokens
             
-            print(f"[DEBUG] OAuth tokens found: access_token={has_access_token}, refresh_token={has_refresh_token}")
-            
             if has_access_token and has_refresh_token:
                 print("Using OAuth credentials for YouTube Music (valid format)")
                 # Guardar en oauth.json porque YTMusic lo necesita
@@ -725,10 +723,6 @@ def get_ytm_playlists(headers):
         print("Fetching all playlists from YouTube Music...")
         playlists = ytmusic.get_library_playlists(limit=None)
         
-        # Debug: print raw response type and content
-        print(f"[DEBUG] get_library_playlists returned type: {type(playlists)}")
-        print(f"[DEBUG] get_library_playlists returned: {playlists}")
-        
         if playlists is None:
             print("get_library_playlists returned None")
             raise Exception("Failed to fetch playlists - API returned None. Authentication may have failed.")
@@ -739,14 +733,11 @@ def get_ytm_playlists(headers):
         
         result = []
         for i, playlist in enumerate(playlists):
-            print(f"[DEBUG] Processing playlist {i}: {playlist}")
             
             if playlist is None:
-                print(f"[DEBUG] Skipping None playlist at index {i}")
                 continue
                 
             if not isinstance(playlist, dict):
-                print(f"[DEBUG] Skipping non-dict playlist at index {i}: {type(playlist)}")
                 continue
             
             playlist_data = {

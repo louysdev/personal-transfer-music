@@ -300,25 +300,18 @@ class ApiService {
   /// Get Google Client ID
   Future<String?> getGoogleClientId() async {
     try {
-      print('[DEBUG getGoogleClientId] Calling, baseUrl: $baseUrl');
       final response = await _client.get(
         Uri.parse('$baseUrl/auth/mobile/google'),
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('[DEBUG getGoogleClientId] Response status: ${response.statusCode}');
-      print('[DEBUG getGoogleClientId] Response body: ${response.body}');
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('[DEBUG getGoogleClientId] Parsed data: $data');
-        print('[DEBUG getGoogleClientId] Got client_id: ${data['client_id']}');
         return data['client_id'];
       }
-      print('[DEBUG getGoogleClientId] Non-200 response: ${response.body}');
       return null;
     } catch (e) {
-      print('[DEBUG getGoogleClientId] Error: $e');
+      print('Error getting Google Client ID: $e');
       return null;
     }
   }
@@ -342,22 +335,18 @@ class ApiService {
   /// Get Spotify Client ID
   Future<String?> getSpotifyClientId() async {
     try {
-      print('[DEBUG] Calling getSpotifyClientId, baseUrl: $baseUrl');
       final response = await _client.get(
         Uri.parse('$baseUrl/auth/mobile/spotify-code'),
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('[DEBUG] getSpotifyClientId response: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('[DEBUG] client_id: ${data['client_id']}');
         return data['client_id'];
       }
-      print('[DEBUG] Non-200 response: ${response.body}');
       return null;
     } catch (e) {
-      print('[DEBUG] Error getting Spotify Client ID: $e');
+      print('Error getting Spotify Client ID: $e');
       return null;
     }
   }
