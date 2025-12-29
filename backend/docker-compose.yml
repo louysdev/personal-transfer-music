@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: .
+    container_name: music-transfer-backend
+    restart: always
+    ports:
+      - "80:8000"
+    volumes:
+      # Persistent storage for method requiring file access (writes to these files)
+      - ./tokens.json:/app/tokens.json
+      - ./oauth.json:/app/oauth.json
+      - ./header_auth.json:/app/header_auth.json
+      # If you want to persist logs or other files
+      # - ./logs:/app/logs
+    env_file:
+      - .env
