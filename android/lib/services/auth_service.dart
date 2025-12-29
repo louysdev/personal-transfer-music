@@ -1,16 +1,12 @@
 import 'dart:async';
-import 'package:google_sign_in/google_sign_in.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 import 'package:app_links/app_links.dart';
 import 'api_service.dart';
 
 class AuthService {
   final ApiService _apiService;
-  GoogleSignIn? _googleSignIn;
-  GoogleSignInAccount? _currentUser;
-  
-  // This should be the Web Client ID from Google Cloud Console
-  String? _serverClientId;
+
   
   // Spotify Config
   static const String _redirectUriScheme = 'personal-transfer-music';
@@ -25,8 +21,7 @@ class AuthService {
     _appLinks = AppLinks();
   }
 
-  GoogleSignInAccount? get currentUser => _currentUser;
-  bool get isSignedIn => _currentUser != null;
+
 
   Future<void> initialize() async {
     try {
@@ -39,31 +34,6 @@ class AuthService {
       final initialLink = await _appLinks.getInitialLink();
       if (initialLink != null) {
         _handleDeepLink(initialLink);
-      }
-      
-      // Fetch the server client ID from the backend
-      final clientId = await _apiService.getGoogleClientId();
-      
-      if (clientId != null) {
-        _serverClientId = clientId;
-        _googleSignIn = GoogleSignIn(
-          serverClientId: _serverClientId,
-          forceCodeForRefreshToken: true,
-          scopes: [
-            'https://www.googleapis.com/auth/youtube.force-ssl',
-            'https://www.googleapis.com/auth/youtubepartner',
-            'email',
-            'profile',
-          ],
-        );
-        
-        // Listen to user changes
-        _googleSignIn!.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
-          _currentUser = account;
-        });
-        
-        // Try to sign in silently
-        await _googleSignIn!.signInSilently();
       }
     } catch (e) {
       print('Error initializing: $e');
@@ -85,30 +55,7 @@ class AuthService {
     }
   }
 
-  Future<bool> signInWithGoogle() async {
-    if (_googleSignIn == null) {
-      return false;
-    }
 
-    try {
-      final GoogleSignInAccount? account = await _googleSignIn!.signIn();
-      
-      if (account != null) {
-        _currentUser = account;
-        
-        if (account.serverAuthCode != null) {
-          final success = await _apiService.sendGoogleAuthCode(account.serverAuthCode!);
-          return success;
-        } else {
-          return false;
-        }
-      }
-      return false;
-    } catch (e) {
-      print('Error signing in with Google: $e');
-      return false;
-    }
-  }
   
   Future<String?> signInWithSpotify() async {
     try {
@@ -172,10 +119,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    if (_googleSignIn != null) {
-      await _googleSignIn!.disconnect();
-      _currentUser = null;
-    }
+    // No-op for now as Google Sign-In is removed
   }
   
   void dispose() {

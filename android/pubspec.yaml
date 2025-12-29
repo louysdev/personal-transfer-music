@@ -47,8 +47,7 @@ dependencies:
   # URL launcher for external links
   url_launcher: ^6.3.1
 
-  # Google Sign In
-  google_sign_in: ^6.1.6
+
   
   # Deep linking for OAuth callbacks
   app_links: ^6.3.3

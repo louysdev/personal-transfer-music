@@ -16,7 +16,7 @@ class DeleteAllProvider extends ChangeNotifier {
   DeleteProgress? _deleteProgress;
   Timer? _pollingTimer;
   String _authHeaders = '';
-  bool _isGoogleConnected = false;
+
 
   // Getters
   bool get isLoading => _isLoading;
@@ -27,7 +27,7 @@ class DeleteAllProvider extends ChangeNotifier {
   String? get deleteId => _deleteId;
   DeleteProgress? get deleteProgress => _deleteProgress;
   String get authHeaders => _authHeaders;
-  bool get isGoogleConnected => _isGoogleConnected;
+
   
   bool get hasPlaylists => _playlists.isNotEmpty;
   bool get hasSelection => _selectedPlaylistIds.isNotEmpty;
@@ -48,7 +48,6 @@ class DeleteAllProvider extends ChangeNotifier {
 
   Future<void> _initAuth() async {
     await _authService.initialize();
-    _checkGoogleConnection();
   }
 
   /// Update API base URL and reinitialize services
@@ -62,34 +61,7 @@ class DeleteAllProvider extends ChangeNotifier {
     }
   }
 
-  void _checkGoogleConnection() {
-    _isGoogleConnected = _authService.currentUser != null;
-    notifyListeners();
-  }
 
-  /// Sign in with Google
-  Future<void> signInWithGoogle() async {
-    _isLoading = true;
-    notifyListeners();
-    
-    final success = await _authService.signInWithGoogle();
-    
-    if (success) {
-      _errorMessage = null;
-    } else {
-      _errorMessage = 'Failed to sign in with Google';
-    }
-    
-    _checkGoogleConnection();
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  /// Sign out from Google
-  Future<void> signOutFromGoogle() async {
-    await _authService.signOut();
-    _checkGoogleConnection();
-  }
 
   /// Set auth headers
   void setAuthHeaders(String headers) {
@@ -99,8 +71,8 @@ class DeleteAllProvider extends ChangeNotifier {
 
   /// Load playlists from YouTube Music
   Future<bool> loadPlaylists() async {
-    if (_authHeaders.isEmpty && !_isGoogleConnected) {
-      _errorMessage = 'YouTube Music connection or auth headers are required';
+    if (_authHeaders.isEmpty) {
+      _errorMessage = 'YouTube Music auth headers are required';
       notifyListeners();
       return false;
     }
@@ -170,8 +142,8 @@ class DeleteAllProvider extends ChangeNotifier {
 
   /// Start deletion of selected playlists
   Future<bool> startDelete() async {
-    if (_authHeaders.isEmpty && !_isGoogleConnected) {
-      _errorMessage = 'YouTube Music connection or auth headers are required';
+    if (_authHeaders.isEmpty) {
+      _errorMessage = 'YouTube Music auth headers are required';
       notifyListeners();
       return false;
     }

@@ -14,23 +14,14 @@ class SinglePlaylistScreen extends StatefulWidget {
 
 class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
   final _playlistUrlController = TextEditingController();
-  final _authHeadersController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _showHeaders = false;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<TransferProvider>();
-      _authHeadersController.text = provider.authHeaders;
-    });
-  }
+
+
 
   @override
   void dispose() {
     _playlistUrlController.dispose();
-    _authHeadersController.dispose();
     super.dispose();
   }
 
@@ -38,9 +29,7 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     if (data?.text != null && mounted) {
       controller.text = data!.text!;
-      if (controller == _authHeadersController) {
-        context.read<TransferProvider>().setAuthHeaders(data.text!);
-      } else if (controller == _playlistUrlController) {
+      if (controller == _playlistUrlController) {
         context.read<TransferProvider>().setPlaylistUrl(data.text!);
       }
     }
@@ -51,14 +40,13 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
 
     final provider = context.read<TransferProvider>();
     
-    // Check if user has authenticated with YouTube Music
-    if (!provider.isGoogleConnected && _authHeadersController.text.isEmpty) {
-      _showErrorSnackbar('Please connect to YouTube Music or provide auth headers');
+    // Check for auth headers (from Settings)
+    if (provider.authHeaders.isEmpty) {
+      _showErrorSnackbar('Please configure YouTube Music headers in Settings first');
       return;
     }
     
     provider.setPlaylistUrl(_playlistUrlController.text);
-    provider.setAuthHeaders(_authHeadersController.text);
 
     final success = await provider.transferSinglePlaylist();
 
@@ -198,7 +186,7 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // YouTube Music Auth
+                  // YouTube Music Auth - Status from Settings
                   Card(
                     color: const Color(0xFFFF0000).withValues(alpha: 0.1),
                     child: Padding(
@@ -226,12 +214,12 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
                                       style: Theme.of(context).textTheme.titleSmall,
                                     ),
                                     Text(
-                                      provider.isGoogleConnected 
-                                          ? 'Connected ✓' 
-                                          : (provider.authHeaders.isNotEmpty ? 'Headers Provided' : 'Not connected'),
+                                      provider.authHeaders.isNotEmpty 
+                                          ? 'Headers loaded from Settings ✓' 
+                                          : 'No headers configured',
                                       style: TextStyle(
-                                        color: (provider.isGoogleConnected || provider.authHeaders.isNotEmpty)
-                                            ? AppTheme.successColor
+                                        color: provider.authHeaders.isNotEmpty 
+                                            ? AppTheme.successColor 
                                             : Colors.grey,
                                         fontSize: 12,
                                       ),
@@ -239,92 +227,33 @@ class _SinglePlaylistScreenState extends State<SinglePlaylistScreen> {
                                   ],
                                 ),
                               ),
+                              if (provider.authHeaders.isEmpty)
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Go to Settings'),
+                                ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          
-                          // Connect with Google Button
-                          if (!provider.isGoogleConnected)
-                            SizedBox(
-                              height: 48,
-                              child: ElevatedButton.icon(
-                                onPressed: provider.isLoading 
-                                    ? null 
-                                    : () => provider.signInWithGoogle(),
-                                icon: const Icon(Icons.login),
-                                label: const Text('Connect YouTube Music'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.secondaryColor,
-                                ),
+                          if (provider.authHeaders.isEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange),
                               ),
-                            )
-                          else
-                            SizedBox(
-                              height: 48,
-                              child: OutlinedButton.icon(
-                                onPressed: () => provider.signOutFromGoogle(),
-                                icon: const Icon(Icons.logout),
-                                label: const Text('Disconnect from YouTube'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppTheme.secondaryColor,
-                                  side: const BorderSide(color: AppTheme.secondaryColor),
-                                ),
-                              ),
-                            ),
-                          
-                          // Manual headers option (fallback)
-                          if (!provider.isGoogleConnected) ...[
-                            const SizedBox(height: 16),
-                            const Divider(),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Or paste headers manually',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey,
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Please configure YouTube Music headers in Settings first.',
+                                      style: TextStyle(color: Colors.orange, fontSize: 13),
+                                    ),
                                   ),
-                                ),
-                                TextButton.icon(
-                                  icon: Icon(_showHeaders 
-                                      ? Icons.visibility_off 
-                                      : Icons.visibility,
-                                      size: 16,
-                                  ),
-                                  label: Text(_showHeaders ? 'Hide' : 'Show'),
-                                  style: TextButton.styleFrom(
-                                    textStyle: const TextStyle(fontSize: 12),
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _showHeaders = !_showHeaders;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _authHeadersController,
-                              decoration: InputDecoration(
-                                hintText: 'Paste your auth headers here...',
-                                prefixIcon: const Icon(Icons.security),
-                                suffixIcon: IconButton(
-                                  icon: const Icon(Icons.content_paste),
-                                  onPressed: () => _pasteFromClipboard(_authHeadersController),
-                                  tooltip: 'Paste from clipboard',
-                                ),
-                              ),
-                              maxLines: _showHeaders ? 6 : 1,
-                              obscureText: !_showHeaders,
-                              onChanged: provider.setAuthHeaders,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Get headers from YouTube Music website (see Help)',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey,
+                                ],
                               ),
                             ),
                           ],

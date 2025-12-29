@@ -17,7 +17,7 @@ class TransferAllProvider extends ChangeNotifier {
   Timer? _pollingTimer;
   String _authHeaders = '';
   String _spotifyToken = '';
-  bool _isGoogleConnected = false;
+
 
   // Getters
   bool get isLoading => _isLoading;
@@ -29,7 +29,7 @@ class TransferAllProvider extends ChangeNotifier {
   TransferProgress? get transferProgress => _transferProgress;
   String get authHeaders => _authHeaders;
   String get spotifyToken => _spotifyToken;
-  bool get isGoogleConnected => _isGoogleConnected;
+
   
   bool get hasPlaylists => _playlists.isNotEmpty;
   bool get hasSelection => _selectedPlaylistIds.isNotEmpty;
@@ -50,7 +50,6 @@ class TransferAllProvider extends ChangeNotifier {
 
   Future<void> _initAuth() async {
     await _authService.initialize();
-    _checkGoogleConnection();
   }
 
   /// Update API base URL and reinitialize services
@@ -64,34 +63,7 @@ class TransferAllProvider extends ChangeNotifier {
     }
   }
 
-  void _checkGoogleConnection() {
-    _isGoogleConnected = _authService.currentUser != null;
-    notifyListeners();
-  }
 
-  /// Sign in with Google
-  Future<void> signInWithGoogle() async {
-    _isLoading = true;
-    notifyListeners();
-    
-    final success = await _authService.signInWithGoogle();
-    
-    if (success) {
-      _errorMessage = null;
-    } else {
-      _errorMessage = 'Failed to sign in with Google';
-    }
-    
-    _checkGoogleConnection();
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  /// Sign out from Google
-  Future<void> signOutFromGoogle() async {
-    await _authService.signOut();
-    _checkGoogleConnection();
-  }
 
   /// Set auth headers
   void setAuthHeaders(String headers) {
@@ -178,8 +150,8 @@ class TransferAllProvider extends ChangeNotifier {
 
   /// Start transfer of selected playlists
   Future<bool> startTransfer() async {
-    if (_authHeaders.isEmpty && !_isGoogleConnected) {
-      _errorMessage = 'YouTube Music connection or auth headers are required';
+    if (_authHeaders.isEmpty) {
+      _errorMessage = 'YouTube Music auth headers are required';
       notifyListeners();
       return false;
     }
