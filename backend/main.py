@@ -26,8 +26,8 @@ app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
 CORS(app, resources={
     r"/*" : {
-        "origins": [os.getenv('FRONTEND_URL')],
-        "methods" : ["POST", "GET"],
+        "origins": "*",
+        "methods" : ["POST", "GET", "OPTIONS"],
         "supports_credentials": True
     }
 })
@@ -82,6 +82,16 @@ def google_auth():
             
         token_data = response.json()
         
+        # DEBUG LOGGING for 401 Unauthorized issue
+        print(f"DEBUG: Google Token Response Keys: {list(token_data.keys())}")
+        if 'refresh_token' in token_data:
+            print("DEBUG: ✅ refresh_token IS present in the response")
+        else:
+            print("DEBUG: ❌ refresh_token IS MISSING in the response")
+            print("DEBUG: This will cause 401 errors because ytmusicapi needs a refresh_token")
+            # Log the request payload scope to see if we asked for offline access
+            print(f"DEBUG: Request payload keys: {payload.keys()}")
+            
         # Guardar tokens
         save_youtube_oauth(token_data)
         

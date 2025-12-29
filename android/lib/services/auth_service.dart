@@ -48,6 +48,7 @@ class AuthService {
         _serverClientId = clientId;
         _googleSignIn = GoogleSignIn(
           serverClientId: _serverClientId,
+          forceCodeForRefreshToken: true,
           scopes: [
             'https://www.googleapis.com/auth/youtube.force-ssl',
             'https://www.googleapis.com/auth/youtubepartner',

@@ -20,6 +20,6 @@ if [ ! -f .env ]; then
 fi
 
 # Build and start the container
-docker-compose up -d --build
+docker compose up -d --build
 
 echo "Deployment finished! Application should be running on port 80."

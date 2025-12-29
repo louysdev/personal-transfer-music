@@ -12,9 +12,13 @@ def check_playlist_exists(ytmusic, playlist_name):
         # Obtener todas las playlists del usuario
         playlists = ytmusic.get_library_playlists(limit=None)
         
+        if playlists is None:
+            print("Warning: get_library_playlists returned None. Authentication might be failing.")
+            return None
+            
         # Buscar playlist con el mismo nombre
         for playlist in playlists:
-            if playlist.get('title', '').strip() == playlist_name.strip():
+            if playlist and isinstance(playlist, dict) and playlist.get('title', '').strip() == playlist_name.strip():
                 print(f"Found existing playlist: '{playlist_name}' with ID: {playlist.get('playlistId')}")
                 return playlist.get('playlistId')
         
@@ -118,6 +122,15 @@ def setup_ytmusic(headers=None):
             
             if has_access_token and has_refresh_token:
                 print("Using OAuth credentials for YouTube Music (valid format)")
+                
+                # INJECT CLIENT CREDENTIALS from env so ytmusicapi can refresh
+                # These are NOT provided by the mobile Google Sign-In response
+                oauth_tokens['client_id'] = os.getenv('GOOGLE_CLIENT_ID')
+                oauth_tokens['client_secret'] = os.getenv('GOOGLE_CLIENT_SECRET')
+                oauth_tokens['token_uri'] = "https://oauth2.googleapis.com/token" # Critical for refresh
+                
+                print(f"DEBUG: OAuth Scopes: {oauth_tokens.get('scope')}")
+                
                 # Guardar en oauth.json porque YTMusic lo necesita
                 with open("oauth.json", "w") as f:
                     json.dump(oauth_tokens, f)
@@ -130,24 +143,26 @@ def setup_ytmusic(headers=None):
         
     # Intentar cargar archivos existentes por defecto
     if os.path.exists("header_auth.json"):
-        print("Using existing header_auth.json")
-        return YTMusic("header_auth.json")
+        # Verificar tamaño para evitar archivos corruptos o vacíos
+        if os.path.getsize("header_auth.json") > 10:
+            print("Using existing header_auth.json")
+            return YTMusic("header_auth.json")
+        else:
+            print("header_auth.json is too small, likely invalid. Skipping.")
     
     # Solo usar oauth.json si fue creado por ytmusicapi (tiene refresh_token)
-    if os.path.exists("oauth.json"):
+    if os.path.exists("oauth.json") and os.path.getsize("oauth.json") > 10:
         try:
             import json
             with open("oauth.json", "r") as f:
                 existing_oauth = json.load(f)
-            if existing_oauth.get("refresh_token"):
+            if existing_oauth and isinstance(existing_oauth, dict) and existing_oauth.get("refresh_token"):
                 print("Using existing oauth.json (valid format)")
                 return YTMusic("oauth.json")
-            else:
-                print("Existing oauth.json is not valid (no refresh_token)")
         except Exception as e:
             print(f"Error reading oauth.json: {e}")
         
-    raise Exception("No valid credentials found for YouTube Music. Please provide auth headers or run 'ytmusicapi oauth' to set up OAuth.")
+    raise Exception("No valid credentials found for YouTube Music. Please provide auth headers in the app settings.")
 
 
 def create_ytm_playlist(playlist_link, headers):
